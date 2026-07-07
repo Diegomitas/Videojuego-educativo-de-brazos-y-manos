@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>¿Cómo se mueven mis brazos y manos?</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Librería para Confeti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Librería para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #92400e; /* amber-800 */
+            --secondary: #d97706; /* amber-600 */
+            --success: #15803d; /* green-700 (tono tierra) */
+            --error: #b91c1c; /* red-700 */
+            --wood: #d2b48c;
+            --wood-dark: #8b5a2b;
+            --beige-bg: #fdf8f5;
+            --beige-dots: #e6d5c3;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--beige-bg);
+            background-image: radial-gradient(var(--beige-dots) 2px, transparent 2px);
+            background-size: 30px 30px;
+            overflow-x: hidden;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        h1, h2, h3, .font-title {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* Botones estilo juego infantil adaptados a la nueva paleta */
+        .btn-game {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(139, 90, 43, 0.3); /* Sombra café */
+        }
+        .btn-game:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 rgba(139, 90, 43, 0.3);
+        }
+
+        /* Animaciones */
+        @keyframes wave {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-20deg); }
+            75% { transform: rotate(20deg); }
+        }
+        .animate-wave {
+            animation: wave 2s infinite ease-in-out;
+            transform-origin: bottom center;
+        }
+
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 3s infinite ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px) rotate(-3deg); }
+            75% { transform: translateX(8px) rotate(3deg); }
+        }
+        .shake-animation {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-animation {
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Cartas Interactivas (Tonos Piedra/Arena) */
+        .game-card {
+            background: white;
+            border: 4px solid #e7e5e4; /* stone-200 */
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 0 #d6d3d1; /* stone-300 */
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .game-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 0 #a8a29e; /* stone-400 */
+        }
+        .game-card:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #d6d3d1;
+        }
+        .game-card.correct {
+            border-color: var(--success);
+            background-color: #f0fdf4;
+            box-shadow: 0 4px 0 #15803d;
+            transform: translateY(4px);
+            pointer-events: none;
+        }
+        .game-card.incorrect {
+            border-color: var(--error);
+            background-color: #fef2f2;
+        }
+
+        /* Ocultar elementos */
+        .hidden { display: none !important; }
+
+        /* Estilos del certificado (Tonos café, beige y dorado) */
+        #certificate-container {
+            width: 800px;
+            height: 600px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="%23fdf8f5" /><rect x="20" y="20" width="760" height="560" fill="none" stroke="%238b4513" stroke-width="10" rx="20" /><rect x="30" y="30" width="740" height="540" fill="none" stroke="%23d2b48c" stroke-width="4" rx="15" /></svg>') no-repeat center center;
+            background-size: cover;
+            position: relative;
+            padding: 50px;
+            text-align: center;
+            font-family: 'Fredoka', sans-serif;
+            color: #451a03; /* amber-950 */
+        }
+    </style>
+</head>
+<body class="text-stone-800 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-4xl bg-[#fafaf9]/90 backdrop-blur-sm rounded-3xl shadow-2xl border-4 border-stone-200 overflow-hidden relative min-h-[600px] flex flex-col">
+        
+        <!-- Control de Sonido Global -->
+        <button id="btn-sound-global" class="absolute top-4 right-4 z-50 bg-white p-3 rounded-full shadow-md text-2xl hover:bg-stone-100 transition border-2 border-stone-200" onclick="toggleSound()">
+            🔊
+        </button>
+
+        <!-- ================= PANTALLA INICIO ================= -->
+        <div id="screen-start" class="screen flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-amber-100 to-stone-50">
+            <h1 class="font-title text-4xl md:text-6xl text-amber-900 mb-4 drop-shadow-md">
+                ¿CÓMO SE MUEVEN<br>MIS BRAZOS Y MANOS?
+            </h1>
+            <p class="text-xl text-stone-700 mb-8 font-bold">Descubre cómo funcionan los brazos y las manos mientras juegas.</p>
+            
+            <!-- Maniquí animado decorativo -->
+            <div class="w-32 h-32 mb-8 animate-bounce-slow">
+                <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg">
+                    <!-- Cuerpo -->
+                    <rect x="40" y="40" width="20" height="30" rx="5" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                    <!-- Cabeza -->
+                    <circle cx="50" cy="25" r="12" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                    <!-- Brazo Izquierdo (saludando) -->
+                    <g class="animate-wave">
+                        <rect x="25" y="40" width="15" height="6" rx="3" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2" transform="rotate(-30 40 40)"/>
+                        <circle cx="25" cy="33" r="3" fill="var(--wood-dark)"/> <!-- codo -->
+                        <rect x="10" y="25" width="15" height="6" rx="3" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2" transform="rotate(-60 25 33)"/>
+                    </g>
+                    <!-- Brazo Derecho -->
+                    <rect x="60" y="40" width="6" height="25" rx="3" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                    <!-- Piernas -->
+                    <rect x="42" y="70" width="6" height="25" rx="3" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                    <rect x="52" y="70" width="6" height="25" rx="3" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                    <!-- Cara -->
+                    <circle cx="46" cy="23" r="1.5" fill="#4a2e15"/>
+                    <circle cx="54" cy="23" r="1.5" fill="#4a2e15"/>
+                    <path d="M 45 28 Q 50 32 55 28" fill="none" stroke="#4a2e15" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+
+            <div class="space-y-4 w-full max-w-xs">
+                <button onclick="navTo('avatar')" class="btn-game w-full bg-amber-700 hover:bg-amber-800 text-white font-title text-2xl py-4 rounded-2xl">
+                    ¡Comenzar Aventura!
+                </button>
+                <button onclick="showInstructions()" class="btn-game w-full bg-stone-500 hover:bg-stone-600 text-white font-title text-xl py-3 rounded-2xl">
+                    Instrucciones
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= PANTALLA CREACIÓN AVATAR ================= -->
+        <div id="screen-avatar" class="screen hidden flex-1 flex flex-col items-center justify-center p-8 text-center bg-stone-100">
+            <h2 class="font-title text-4xl text-amber-900 mb-6">Crea tu Explorador</h2>
+            
+            <div class="bg-white p-6 rounded-3xl shadow-lg border-2 border-stone-200 w-full max-w-md">
+                <div class="mb-4">
+                    <label class="block font-bold text-lg mb-2 text-stone-700">¿Cómo te llamas?</label>
+                    <input type="text" id="player-name" placeholder="Tu nombre..." class="w-full text-center text-xl p-3 border-4 border-stone-200 rounded-xl focus:outline-none focus:border-amber-700 font-title text-stone-700" maxlength="15">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block font-bold text-lg mb-2 text-stone-700">Elige tu personaje</label>
+                    <div class="flex justify-center gap-4">
+                        <button class="avatar-select-btn btn-game bg-stone-100 p-4 rounded-2xl border-4 border-transparent focus:border-amber-600 text-6xl transition" onclick="selectAvatar('boy')">👦</button>
+                        <button class="avatar-select-btn btn-game bg-stone-100 p-4 rounded-2xl border-4 border-transparent focus:border-amber-600 text-6xl transition" onclick="selectAvatar('girl')">👧</button>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block font-bold text-lg mb-2 text-stone-700">Color de Mochila</label>
+                    <div class="flex justify-center gap-2">
+                        <button class="color-btn w-10 h-10 rounded-full bg-red-800 btn-game border-2 border-white" onclick="setBagColor('red')"></button>
+                        <button class="color-btn w-10 h-10 rounded-full bg-stone-600 btn-game border-2 border-white" onclick="setBagColor('gray')"></button>
+                        <button class="color-btn w-10 h-10 rounded-full bg-emerald-800 btn-game border-2 border-white" onclick="setBagColor('green')"></button>
+                        <button class="color-btn w-10 h-10 rounded-full bg-amber-900 btn-game border-2 border-white" onclick="setBagColor('brown')"></button>
+                    </div>
+                </div>
+
+                <button onclick="navToIntro()" class="btn-game w-full bg-amber-600 hover:bg-amber-700 text-white font-title text-xl py-3 rounded-2xl mt-2">
+                    ¡Listo!
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= PANTALLA INTRODUCCIÓN ================= -->
+        <div id="screen-intro" class="screen hidden flex-1 flex flex-col items-center justify-center p-8 bg-stone-50">
+            <div class="flex flex-col md:flex-row items-center bg-white p-6 rounded-3xl shadow-xl border-4 border-stone-200 max-w-3xl">
+                <!-- Mani SVG más grande -->
+                <div class="w-48 h-48 mb-6 md:mb-0 md:mr-8 flex-shrink-0 animate-bounce-slow">
+                    <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-xl">
+                        <!-- Cuerpo -->
+                        <rect x="35" y="40" width="30" height="40" rx="8" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                        <!-- Cabeza -->
+                        <circle cx="50" cy="20" r="16" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                        <!-- Brazo Izq (saludando alto) -->
+                        <g class="animate-wave">
+                            <rect x="15" y="40" width="22" height="8" rx="4" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2" transform="rotate(-45 35 40)"/>
+                            <circle cx="12" cy="20" r="4" fill="var(--wood-dark)"/> 
+                            <rect x="-10" y="5" width="22" height="8" rx="4" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2" transform="rotate(-80 12 20)"/>
+                            <!-- Mano -->
+                            <circle cx="-5" cy="-12" r="6" fill="var(--wood)" stroke="var(--wood-dark)"/>
+                        </g>
+                        <!-- Brazo Der -->
+                        <rect x="65" y="40" width="8" height="30" rx="4" fill="var(--wood)" stroke="var(--wood-dark)" stroke-width="2"/>
+                        <!-- Cara Sonriente -->
+                        <circle cx="44" cy="16" r="2" fill="#4a2e15"/>
+                        <circle cx="56" cy="16" r="2" fill="#4a2e15"/>
+                        <path d="M 40 24 Q 50 32 60 24" fill="none" stroke="#4a2e15" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                
+                <div class="text-left text-lg text-stone-700">
+                    <h2 class="font-title text-3xl text-amber-900 mb-2">¡Hola <span id="intro-name">Amigo</span>!</h2>
+                    <p class="mb-3">Soy <strong class="text-amber-700">Mani</strong>, el maniquí artista.</p>
+                    <p class="mb-3">Hoy necesito tu ayuda para descubrir cómo funcionan nuestros brazos y manos. Algunas partes y movimientos se han mezclado.</p>
+                    <p class="mb-4">¡Observa con atención, supera cada desafío y consigue todas las estrellas para convertirte en un <strong>Experto en Brazos y Manos</strong>!</p>
+                    
+                    <button onclick="startGame()" class="btn-game w-full md:w-auto bg-amber-700 hover:bg-amber-800 text-white font-title text-xl py-3 px-8 rounded-2xl">
+                        ¡Empezar Aventura!
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PANTALLA DE JUEGO (NIVELES) ================= -->
+        <div id="screen-game" class="screen hidden flex-1 flex flex-col w-full h-full">
+            
+            <!-- Barra Superior (Estado) (Cromática Café Oscuro) -->
+            <div class="bg-amber-900 text-amber-50 p-4 flex flex-wrap justify-between items-center shadow-md relative z-10 border-b-4 border-amber-950">
+                <div class="flex items-center gap-3">
+                    <div id="player-avatar-mini" class="text-3xl bg-white/20 p-2 rounded-full w-12 h-12 flex items-center justify-center border border-amber-700">👦</div>
+                    <div>
+                        <div class="font-title text-lg leading-tight" id="game-player-name">Jugador</div>
+                        <div class="text-xs bg-amber-700 px-2 py-0.5 rounded-full inline-block border border-amber-600 shadow-inner" id="game-badge">Explorador Novato</div>
+                    </div>
+                </div>
+                
+                <!-- Barra de Progreso -->
+                <div class="flex-1 max-w-xs mx-4 hidden md:block">
+                    <div class="text-center text-xs font-bold mb-1 text-amber-200">Nivel <span id="lbl-level">1</span> de 6</div>
+                    <div class="w-full bg-stone-300 rounded-full h-4 border-2 border-stone-400 overflow-hidden shadow-inner">
+                        <div id="progress-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 16%;"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4 font-title text-xl">
+                    <div class="flex items-center gap-1 drop-shadow-md">
+                        <span class="text-amber-300">⭐</span>
+                        <span id="score-stars">0</span>
+                    </div>
+                    <div class="flex items-center gap-1 drop-shadow-md">
+                        <span class="text-orange-200">🪙</span>
+                        <span id="score-coins">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenedor del Nivel Dinámico -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-stone-100 relative">
+                
+                <!-- Progreso móvil -->
+                <div class="md:hidden text-center mb-4">
+                    <div class="text-sm font-bold text-amber-800">Nivel <span id="lbl-level-mobile">1</span>/6</div>
+                </div>
+
+                <!-- Cabecera del Nivel -->
+                <div class="text-center mb-8 pop-animation">
+                    <h2 id="level-title" class="font-title text-3xl md:text-4xl text-amber-950 mb-2">Título del Nivel</h2>
+                    <p id="level-hint" class="text-lg text-amber-900 bg-amber-100 border border-amber-200 inline-block px-4 py-2 rounded-full font-bold shadow-sm inline-flex items-center gap-2">
+                        💡 <span id="level-hint-text">Pista del nivel aquí</span>
+                    </p>
+                </div>
+
+                <!-- Área de contenido del nivel (Cartas, V/F, Adivinanzas) -->
+                <div id="level-content" class="w-full max-w-3xl mx-auto pb-12">
+                    <!-- Contenido inyectado por JS -->
+                </div>
+                
+                <!-- Botón de continuar (oculto hasta completar) -->
+                <div id="btn-next-level-container" class="hidden text-center mt-6 absolute bottom-6 left-0 w-full z-20">
+                     <button onclick="nextLevel()" class="btn-game bg-amber-600 hover:bg-amber-700 text-white font-title text-2xl py-3 px-12 rounded-3xl shadow-lg border-4 border-white animate-bounce">
+                        ¡Siguiente Desafío! ➡️
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PANTALLA FINAL ================= -->
+        <div id="screen-final" class="screen hidden flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-amber-50 to-stone-200 text-center relative overflow-hidden">
+            <h1 class="font-title text-5xl text-amber-800 mb-4 drop-shadow-md pop-animation">¡FELICITACIONES!</h1>
+            
+            <div class="bg-white/90 p-8 rounded-3xl shadow-xl border-4 border-amber-200 max-w-2xl w-full z-10 pop-animation" style="animation-delay: 0.2s">
+                <div id="final-avatar" class="text-7xl mb-4">👦</div>
+                <h2 class="text-3xl font-bold text-amber-950 mb-2" id="final-name">¡Gran trabajo, Jugador!</h2>
+                <p class="text-lg text-stone-600 mb-6">Has completado todos los desafíos junto a Mani. Ahora eres un experto en cómo se mueven los brazos y las manos.</p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200">
+                        <div class="text-sm text-amber-800 font-bold uppercase">Estrellas</div>
+                        <div class="font-title text-4xl text-amber-600 flex justify-center items-center gap-2">
+                            ⭐ <span id="final-stars">0</span>
+                        </div>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-2xl border-2 border-orange-200">
+                        <div class="text-sm text-orange-800 font-bold uppercase">Medalla Alcanzada</div>
+                        <div class="font-title text-xl lg:text-2xl text-orange-700 mt-2" id="final-badge-text">
+                            🥇 Gran Maestro
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="downloadCertificate()" class="btn-game w-full md:w-auto bg-amber-700 hover:bg-amber-800 text-white font-title text-xl py-3 px-8 rounded-2xl flex items-center justify-center gap-2 mx-auto">
+                    📄 Descargar Certificado
+                </button>
+                <button onclick="location.reload()" class="text-stone-500 mt-4 underline hover:text-stone-700 font-bold">Volver a jugar</button>
+            </div>
+            
+            <!-- Mani feliz fondo -->
+            <div class="absolute bottom-[-20px] left-[-20px] w-48 h-48 opacity-40 z-0">
+                 <!-- Reuso del SVG de intro simple -->
+                 <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-xl animate-bounce-slow">
+                    <rect x="35" y="40" width="30" height="40" rx="8" fill="var(--wood)"/>
+                    <circle cx="50" cy="20" r="16" fill="var(--wood)"/>
+                    <g transform="rotate(-150 35 40)"><rect x="15" y="40" width="30" height="8" rx="4" fill="var(--wood)"/></g>
+                    <g transform="rotate(150 65 40)"><rect x="55" y="40" width="30" height="8" rx="4" fill="var(--wood)"/></g>
+                 </svg>
+            </div>
+        </div>
+
+        <!-- ================= CERTIFICADO OCULTO (Para PDF) ================= -->
+        <div style="display: none;">
+            <div id="certificate-container">
+                <div style="font-size: 60px; margin-top: 40px; color: #8b4513; text-shadow: 2px 2px 0px #fff;">CERTIFICADO OFICIAL</div>
+                <div style="font-size: 30px; margin-top: 10px; color: #a0522d; font-weight: bold;">DE EXCELENCIA</div>
+                
+                <div style="font-family: 'Nunito', sans-serif; font-size: 20px; margin-top: 40px; color: #5c4033;">Este certificado se otorga con orgullo a:</div>
+                
+                <div id="cert-name" style="font-size: 50px; margin-top: 20px; color: #451a03; border-bottom: 3px solid #d2b48c; display: inline-block; padding: 0 40px; text-transform: uppercase;">NOMBRE DEL JUGADOR</div>
+                
+                <div style="font-family: 'Nunito', sans-serif; font-size: 20px; margin-top: 30px; padding: 0 80px; line-height: 1.5; color: #5c4033;">
+                    Por haber superado con éxito todos los desafíos de "La Aventura del Cuerpo Humano" y haber demostrado un conocimiento sobresaliente obteniendo el título de:
+                </div>
+                
+                <div id="cert-title" style="font-size: 35px; margin-top: 20px; color: #d97706; font-weight: bold; background: #fffbeb; display: inline-block; padding: 10px 30px; border-radius: 20px; border: 2px dashed #d97706;">
+                    EXPERTO EN BRAZOS Y MANOS
+                </div>
+
+                <div style="display: flex; justify-content: space-around; margin-top: 50px; align-items: flex-end;">
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #8b4513;">⭐ Puntaje: <span id="cert-score">0</span></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="width: 150px; border-bottom: 2px solid #a0522d; margin: 0 auto 10px auto;"></div>
+                        <div style="font-family: 'Nunito', sans-serif; font-size: 16px; color: #78350f; font-weight: bold;">Firma: Mani, el Maniquí Artista</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 20px; font-weight: bold; color: #8b4513;">Fecha: <span id="cert-date">DD/MM/AAAA</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= MODAL CUSTOM (Para evitar alert()) ================= -->
+        <div id="custom-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 hidden backdrop-blur-sm p-4">
+            <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border-4 text-center transform transition-transform scale-95 border-amber-600" id="modal-content-box">
+                <div id="modal-icon" class="text-6xl mb-4 animate-bounce">💡</div>
+                <h3 id="modal-title" class="font-title text-2xl mb-2 text-amber-800">Título</h3>
+                <p id="modal-message" class="text-lg text-stone-600 mb-6">Mensaje</p>
+                <button onclick="closeModal()" id="modal-btn" class="btn-game w-full bg-amber-700 hover:bg-amber-800 text-white font-title text-xl py-3 rounded-2xl">
+                    Entendido
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- ESTADO DEL JUEGO ---
+        const gameState = {
+            playerName: '',
+            avatar: 'boy', // 'boy' o 'girl'
+            bagColor: 'brown',
+            currentLevel: 1,
+            score: 0,
+            stars: 0,
+            soundEnabled: true,
+            levelData: {}, // Guardará el estado del nivel actual
+        };
+
+        // --- SISTEMA DE AUDIO (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(freq, type, duration, vol=0.1) {
+            if (!gameState.soundEnabled) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const audio = {
+            click: () => playTone(600, 'sine', 0.1, 0.2),
+            correct: () => {
+                if(!gameState.soundEnabled) return;
+                playTone(400, 'sine', 0.1, 0.2);
+                setTimeout(() => playTone(523.25, 'sine', 0.15, 0.2), 100);
+                setTimeout(() => playTone(659.25, 'sine', 0.2, 0.2), 250);
+            },
+            wrong: () => {
+                if(!gameState.soundEnabled) return;
+                playTone(150, 'sawtooth', 0.3, 0.1);
+                setTimeout(() => playTone(100, 'sawtooth', 0.4, 0.1), 150);
+            },
+            win: () => {
+                if(!gameState.soundEnabled) return;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    setTimeout(() => playTone(freq, 'sine', 0.3, 0.2), i * 150);
+                });
+            }
+        };
+
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            const btn = document.getElementById('btn-sound-global');
+            btn.innerHTML = gameState.soundEnabled ? '🔊' : '🔇';
+            btn.classList.toggle('bg-red-100', !gameState.soundEnabled);
+            btn.classList.toggle('border-red-300', !gameState.soundEnabled);
+        }
+
+        const levels = [
+            {
+                id: 1,
+                title: "¿Cuáles son las partes del brazo?",
+                hint: "Estas partes ayudan a mover el brazo.",
+                type: "cards",
+                reward: 10,
+                items: [
+                    { id: 'hombro', text: 'Hombro', correct: true, icon: '💪', errorHint: 'El hombro une el brazo con el cuerpo.' },
+                    { id: 'rodilla', text: 'Rodilla', correct: false, icon: '🦵', errorHint: '¡La rodilla está en la pierna, no en el brazo!' },
+                    { id: 'codo', text: 'Codo', correct: true, icon: '📐', errorHint: 'El codo está en el medio del brazo.' },
+                    { id: 'tobillo', text: 'Tobillo', correct: false, icon: '🦶', errorHint: 'El tobillo está cerca del pie.' },
+                    { id: 'muñeca', text: 'Muñeca', correct: true, icon: '⌚', errorHint: 'La muñeca une la mano con el brazo.' },
+                    { id: 'antebrazo', text: 'Antebrazo', correct: true, icon: '📏', errorHint: 'El antebrazo está entre el codo y la muñeca.' }
+                ]
+            },
+            {
+                id: 2,
+                title: "Identifica las partes de la mano",
+                hint: "Las usamos para agarrar, tocar y crear muchas cosas.",
+                type: "cards",
+                reward: 10,
+                items: [
+                    { id: 'pulgar', text: 'Pulgar', correct: true, icon: '👍', errorHint: 'Es el dedo más gordito de la mano.' },
+                    { id: 'talon', text: 'Talón', correct: false, icon: '🦶', errorHint: 'El talón es parte del pie.' },
+                    { id: 'indice', text: 'Índice', correct: true, icon: '☝️', errorHint: 'Es el dedo que usamos para señalar.' },
+                    { id: 'oreja', text: 'Oreja', correct: false, icon: '👂', errorHint: '¡La oreja está en la cabeza para escuchar!' },
+                    { id: 'palma', text: 'Palma', correct: true, icon: '✋', errorHint: 'La palma es la parte plana de la mano.' },
+                    { id: 'unas', text: 'Uñas', correct: true, icon: '💅', errorHint: 'Las uñas protegen las puntas de los dedos.' }
+                ]
+            },
+            {
+                id: 3,
+                title: "¿Para qué sirven los brazos y manos?",
+                hint: "Piensa en las actividades que haces todos los días usando tus manos.",
+                type: "cards",
+                reward: 10,
+                items: [
+                    { id: 'escribir', text: 'Escribir', correct: true, icon: '✍️' },
+                    { id: 'escuchar', text: 'Escuchar', correct: false, icon: '👂', errorHint: 'Usamos las orejas para escuchar.' },
+                    { id: 'dibujar', text: 'Dibujar', correct: true, icon: '🎨' },
+                    { id: 'respirar', text: 'Respirar', correct: false, icon: '🫁', errorHint: 'Usamos la nariz y pulmones para respirar.' },
+                    { id: 'saludar', text: 'Saludar', correct: true, icon: '👋' },
+                    { id: 'lanzar', text: 'Lanzar pelota', correct: true, icon: '⚾' }
+                ]
+            },
+            {
+                id: 4,
+                title: "¿Qué movimiento están haciendo?",
+                hint: "Selecciona todos los movimientos reales que pueden realizar los brazos y manos.",
+                type: "cards",
+                reward: 15,
+                items: [
+                    { id: 'doblar', text: 'Doblar el codo', correct: true, icon: '💪' },
+                    { id: 'volar', text: 'Volar como avión', correct: false, icon: '✈️', errorHint: '¡No tenemos alas, usamos aviones de verdad para volar!' },
+                    { id: 'estirar', text: 'Estirar el brazo', correct: true, icon: '🫳' },
+                    { id: 'caminar', text: 'Caminar con manos', correct: false, icon: '🤸', errorHint: 'Aunque se puede, normalmente usamos los pies para caminar.' },
+                    { id: 'abrir', text: 'Abrir la mano', correct: true, icon: '🖐️' },
+                    { id: 'cerrar', text: 'Cerrar el puño', correct: true, icon: '✊' }
+                ]
+            },
+            {
+                id: 5,
+                title: "Verdadero o Falso",
+                hint: "Lee atentamente y decide si es verdad (✅) o mentira (❌).",
+                type: "tf",
+                reward: 20,
+                items: [
+                    { text: 'El codo permite doblar el brazo.', correct: true },
+                    { text: 'Tenemos cinco dedos en cada mano.', correct: true },
+                    { text: 'La rodilla forma parte del brazo.', correct: false, errorHint: 'La rodilla está en la pierna.' },
+                    { text: 'La muñeca une la mano con el brazo.', correct: true },
+                    { text: 'Las manos sirven para escribir y dibujar.', correct: true }
+                ]
+            },
+            {
+                id: 6,
+                title: "Desafío Experto: Adivinanzas",
+                hint: "Lee la adivinanza y elige la respuesta correcta.",
+                type: "riddle",
+                reward: 25,
+                items: [
+                    { 
+                        question: "Tengo cinco dedos y me ayudas a escribir, dibujar y agarrar objetos. ¿Quién soy?",
+                        options: [
+                            { text: "La mano", correct: true },
+                            { text: "El pie", correct: false },
+                            { text: "La cabeza", correct: false }
+                        ]
+                    },
+                    { 
+                        question: "Estoy entre el brazo y la mano y puedo moverla en diferentes direcciones. ¿Quién soy?",
+                        options: [
+                            { text: "El tobillo", correct: false },
+                            { text: "La muñeca", correct: true },
+                            { text: "El cuello", correct: false }
+                        ]
+                    },
+                    { 
+                        question: "Me doblo para acercar la mano al cuerpo. ¿Quién soy?",
+                        options: [
+                            { text: "El codo", correct: true },
+                            { text: "El hombro", correct: false },
+                            { text: "La rodilla", correct: false }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        function hideAllScreens() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        }
+
+        function navTo(screenId) {
+            audio.click();
+            hideAllScreens();
+            document.getElementById(`screen-${screenId}`).classList.remove('hidden');
+        }
+
+        function showInstructions() {
+            audio.click();
+            showModal(
+                "¿Cómo Jugar?", 
+                "Lee la pregunta de cada nivel y selecciona las respuestas correctas. ¡Gana estrellas y monedas para obtener medallas! Si te equivocas, lee la pista e inténtalo de nuevo.", 
+                "🎮"
+            );
+        }
+
+        // --- CREACIÓN DE AVATAR ---
+        function selectAvatar(type) {
+            audio.click();
+            gameState.avatar = type;
+            document.querySelectorAll('.avatar-select-btn').forEach(btn => btn.classList.remove('border-amber-600', 'bg-amber-100'));
+            
+            // Colores más acordes al nuevo tema (ámbar)
+            event.target.classList.add('border-amber-600', 'bg-amber-100');
+        }
+
+        function setBagColor(color) {
+            audio.click();
+            gameState.bagColor = color;
+            document.querySelectorAll('.color-btn').forEach(btn => btn.style.transform = 'scale(1)');
+            event.target.style.transform = 'scale(1.2)';
+        }
+
+        function navToIntro() {
+            const nameInput = document.getElementById('player-name').value.trim();
+            gameState.playerName = nameInput || (gameState.avatar === 'boy' ? 'Explorador' : 'Exploradora');
+            
+            document.getElementById('intro-name').innerText = gameState.playerName;
+            
+            // Setear avatar UI en header
+            const avatarEmoji = gameState.avatar === 'boy' ? '👦' : '👧';
+            document.getElementById('player-avatar-mini').innerText = avatarEmoji;
+            document.getElementById('game-player-name').innerText = gameState.playerName;
+            
+            navTo('intro');
+        }
+
+        function showModal(title, message, icon = "💡") {
+            const modal = document.getElementById('custom-modal');
+            
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal-icon').innerText = icon;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            audio.click();
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // --- MOTOR DEL JUEGO ---
+        function startGame() {
+            gameState.currentLevel = 1;
+            gameState.score = 0;
+            gameState.stars = 0;
+            updateScoreUI();
+            loadLevel(1);
+            navTo('game');
+        }
+
+        function updateScoreUI() {
+            document.getElementById('score-stars').innerText = gameState.stars;
+            document.getElementById('score-coins').innerText = gameState.score;
+            
+            // Actualizar medalla (Badge)
+            let badge = "Explorador Novato";
+            if(gameState.score >= 150) badge = "Gran Maestro del Movimiento";
+            else if(gameState.score >= 100) badge = "Experto en Brazos y Manos";
+            else if(gameState.score >= 50) badge = "Explorador del Cuerpo";
+            
+            document.getElementById('game-badge').innerText = badge;
+            return badge;
+        }
+
+        function addScore(points) {
+            gameState.score += points;
+            updateScoreUI();
+        }
+
+        function loadLevel(levelIndex) {
+            const level = levels[levelIndex - 1];
+            if (!level) {
+                finishGame();
+                return;
+            }
+
+            // Actualizar UI General
+            document.getElementById('lbl-level').innerText = levelIndex;
+            document.getElementById('lbl-level-mobile').innerText = levelIndex;
+            document.getElementById('level-title').innerText = level.title;
+            document.getElementById('level-hint-text').innerText = level.hint;
+            document.getElementById('btn-next-level-container').classList.add('hidden');
+            
+            // Barra de progreso
+            const percent = ((levelIndex - 1) / levels.length) * 100;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+
+            const container = document.getElementById('level-content');
+            container.innerHTML = ''; // Limpiar
+
+            // Resetear estado del nivel
+            gameState.levelData = {
+                type: level.type,
+                itemsTotal: 0,
+                itemsFound: 0,
+                reward: level.reward,
+                answered: {} // Para rastrear T/F o Adivinanzas
+            };
+
+            // Renderizar según tipo
+            if (level.type === 'cards') {
+                renderCards(level.items, container);
+            } else if (level.type === 'tf') {
+                renderTF(level.items, container);
+            } else if (level.type === 'riddle') {
+                renderRiddles(level.items, container);
+            }
+        }
+
+        function renderCards(items, container) {
+            container.className = "grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mt-6 w-full max-w-3xl mx-auto";
+            
+            // Contar correctas
+            gameState.levelData.itemsTotal = items.filter(i => i.correct).length;
+            
+            // Desordenar
+            const shuffled = [...items].sort(() => Math.random() - 0.5);
+
+            shuffled.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "game-card p-6 flex flex-col items-center justify-center text-center h-40";
+                card.innerHTML = `
+                    <div class="text-5xl mb-3 drop-shadow-md">${item.icon}</div>
+                    <div class="font-title text-xl text-stone-700 leading-tight">${item.text}</div>
+                `;
+                
+                card.onclick = () => handleCardClick(card, item);
+                container.appendChild(card);
+            });
+        }
+
+        function handleCardClick(card, item) {
+            if (card.classList.contains('correct') || card.classList.contains('incorrect')) return;
+
+            if (item.correct) {
+                audio.correct();
+                card.classList.add('correct', 'pop-animation');
+                card.innerHTML += `<div class="absolute -top-2 -right-2 text-3xl">⭐</div>`;
+                addScore(item.reward || 5);
+                
+                gameState.levelData.itemsFound++;
+                checkLevelComplete();
+            } else {
+                audio.wrong();
+                card.classList.add('incorrect', 'shake-animation');
+                setTimeout(() => card.classList.remove('shake-animation'), 400);
+                
+                const hints = [
+                    "¡Casi, pero no! Vuelve a intentarlo.",
+                    "Observa bien, esa no es la respuesta correcta.",
+                    "¡Uy! Te equivocaste de parte."
+                ];
+                let hintMsg = item.errorHint || hints[Math.floor(Math.random() * hints.length)];
+                showModal("¡Ups!", hintMsg, "🤔");
+                
+                // Quitar clase incorrecta después de un rato
+                setTimeout(() => card.classList.remove('incorrect'), 1500);
+            }
+        }
+
+        function renderTF(items, container) {
+            container.className = "flex flex-col gap-4 mt-6 w-full max-w-2xl mx-auto";
+            gameState.levelData.itemsTotal = items.length;
+
+            items.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = "bg-white p-4 md:p-6 rounded-2xl shadow-sm border-2 border-stone-200 flex flex-col md:flex-row items-center justify-between gap-4";
+                row.id = `tf-row-${index}`;
+                
+                row.innerHTML = `
+                    <div class="text-lg font-bold text-stone-700 text-center md:text-left flex-1">${item.text}</div>
+                    <div class="flex gap-4">
+                        <button class="btn-game bg-stone-100 hover:bg-stone-200 text-emerald-700 border-2 border-emerald-400 font-bold py-2 px-6 rounded-xl text-xl" onclick="handleTFClick(${index}, true, ${item.correct}, '${item.errorHint || ''}')">✅ Verdad</button>
+                        <button class="btn-game bg-stone-100 hover:bg-stone-200 text-red-700 border-2 border-red-400 font-bold py-2 px-6 rounded-xl text-xl" onclick="handleTFClick(${index}, false, ${item.correct}, '${item.errorHint || ''}')">❌ Mentira</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        window.handleTFClick = function(index, choice, isCorrect, errorHint) {
+            if (gameState.levelData.answered[index]) return; // ya respondido
+            
+            const row = document.getElementById(`tf-row-${index}`);
+            const buttons = row.querySelectorAll('button');
+
+            if (choice === isCorrect) {
+                audio.correct();
+                gameState.levelData.answered[index] = true;
+                gameState.levelData.itemsFound++;
+                row.classList.add('bg-stone-50', 'border-emerald-500', 'pop-animation');
+                
+                // Marcar verde al correct
+                buttons.forEach(b => {
+                    b.classList.add('opacity-50', 'pointer-events-none');
+                    if (b.innerText.includes(choice ? 'Verdad' : 'Mentira')) {
+                        b.classList.remove('opacity-50', 'bg-stone-100');
+                        b.classList.add('bg-emerald-100', 'text-emerald-900', 'border-emerald-500');
+                    }
+                });
+                
+                addScore(5);
+                checkLevelComplete();
+            } else {
+                audio.wrong();
+                row.classList.add('shake-animation');
+                setTimeout(() => row.classList.remove('shake-animation'), 400);
+                showModal("¡Piénsalo bien!", errorHint || "Esa afirmación no es correcta, inténtalo de nuevo.", "🧐");
+            }
+        }
+
+        function renderRiddles(items, container) {
+            container.className = "flex flex-col gap-6 mt-6 w-full max-w-2xl mx-auto";
+            gameState.levelData.itemsTotal = items.length;
+
+            items.forEach((item, index) => {
+                const box = document.createElement('div');
+                box.className = "bg-white p-6 rounded-3xl shadow-sm border-2 border-amber-200 relative overflow-hidden";
+                box.id = `riddle-box-${index}`;
+                
+                let optionsHtml = '';
+                item.options.forEach((opt, oIdx) => {
+                    optionsHtml += `<button class="btn-game w-full text-left bg-stone-50 hover:bg-stone-100 border-2 border-stone-200 text-stone-700 font-bold py-3 px-4 rounded-xl text-lg mb-2 transition-colors" onclick="handleRiddleClick(${index}, ${oIdx}, ${opt.correct})">${opt.text}</button>`;
+                });
+
+                box.innerHTML = `
+                    <div class="absolute top-0 right-0 bg-amber-600 text-amber-50 rounded-bl-2xl px-4 py-1 font-bold text-sm border-l-2 border-b-2 border-amber-700">Adivinanza ${index+1}</div>
+                    <div class="text-xl font-title text-amber-900 mb-4 mt-2 pr-12">${item.question}</div>
+                    <div class="flex flex-col">${optionsHtml}</div>
+                `;
+                container.appendChild(box);
+            });
+        }
+
+        window.handleRiddleClick = function(qIndex, oIndex, isCorrect) {
+            if (gameState.levelData.answered[qIndex]) return;
+            
+            const box = document.getElementById(`riddle-box-${qIndex}`);
+            const buttons = box.querySelectorAll('button');
+            const clickedBtn = buttons[oIndex];
+
+            if (isCorrect) {
+                audio.correct();
+                gameState.levelData.answered[qIndex] = true;
+                gameState.levelData.itemsFound++;
+                clickedBtn.classList.replace('bg-stone-50', 'bg-emerald-600');
+                clickedBtn.classList.replace('hover:bg-stone-100', 'hover:bg-emerald-600');
+                clickedBtn.classList.replace('text-stone-700', 'text-white');
+                clickedBtn.classList.replace('border-stone-200', 'border-emerald-700');
+                
+                // Deshabilitar otros
+                buttons.forEach(b => {
+                    b.classList.add('pointer-events-none');
+                    if(b !== clickedBtn) b.classList.add('opacity-40');
+                });
+                
+                addScore(10);
+                checkLevelComplete();
+            } else {
+                audio.wrong();
+                clickedBtn.classList.add('shake-animation', 'bg-red-200', 'border-red-400', 'text-red-800');
+                setTimeout(() => {
+                    clickedBtn.classList.remove('shake-animation', 'bg-red-200', 'border-red-400', 'text-red-800');
+                }, 800);
+            }
+        }
+
+        function checkLevelComplete() {
+            if (gameState.levelData.itemsFound >= gameState.levelData.itemsTotal) {
+                // Nivel completado
+                gameState.stars++;
+                updateScoreUI();
+                audio.win();
+                fireConfetti();
+                
+                setTimeout(() => {
+                    document.getElementById('btn-next-level-container').classList.remove('hidden');
+                    // Scroll to bottom
+                    document.getElementById('screen-game').scrollTo({ top: document.getElementById('screen-game').scrollHeight, behavior: 'smooth' });
+                }, 500);
+            }
+        }
+
+        function nextLevel() {
+            audio.click();
+            gameState.currentLevel++;
+            if (gameState.currentLevel > levels.length) {
+                finishGame();
+            } else {
+                loadLevel(gameState.currentLevel);
+            }
+        }
+
+        function fireConfetti() {
+            var duration = 2 * 1000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                // Confeti con colores arena, bronce y madera
+                confetti({
+                    particleCount: 4,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#8b4513', '#d2b48c', '#d97706', '#e7e5e4']
+                });
+                confetti({
+                    particleCount: 4,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#8b4513', '#d2b48c', '#d97706', '#e7e5e4']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        function finishGame() {
+            audio.win();
+            fireConfetti();
+            document.getElementById('progress-bar').style.width = `100%`;
+            
+            setTimeout(() => {
+                hideAllScreens();
+                document.getElementById('screen-final').classList.remove('hidden');
+                
+                const finalBadge = updateScoreUI(); // Obtener string de medalla
+                
+                document.getElementById('final-name').innerText = `¡Gran trabajo, ${gameState.playerName}!`;
+                document.getElementById('final-stars').innerText = gameState.stars;
+                document.getElementById('final-badge-text').innerText = `🥇 ${finalBadge}`;
+                document.getElementById('final-avatar').innerText = gameState.avatar === 'boy' ? '👦' : '👧';
+
+                // Preparar datos para el certificado
+                document.getElementById('cert-name').innerText = gameState.playerName;
+                document.getElementById('cert-score').innerText = `${gameState.score} Puntos`;
+                
+                const today = new Date();
+                document.getElementById('cert-date').innerText = `${today.getDate()}/${today.getMonth()+1}/${today.getFullYear()}`;
+                
+            }, 1000);
+        }
+
+        // --- GENERACIÓN DEL PDF ---
+        function downloadCertificate() {
+            audio.click();
+            const element = document.getElementById('certificate-container');
+            const opt = {
+                margin:       0,
+                filename:     `Certificado_Explorador_${gameState.playerName}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'px', format: [800, 600], orientation: 'landscape' }
+            };
+
+            // Asegurar que sea visible para html2pdf (temporalmente)
+            element.parentElement.style.display = 'block';
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.parentElement.style.display = 'none';
+            });
+        }
+
+    </script>
+</body>
+</html>
